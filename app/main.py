@@ -82,7 +82,9 @@ def export_weather_json(db: Session = Depends(get_db)):
     for d in data:
         d.pop("_sa_instance_state", None)  # Remove SQLAlchemy internal field
 
+    from fastapi.encoders import jsonable_encoder
+
     return JSONResponse(
-        content=data,
+        content=jsonable_encoder(data),  # Converts datetime to ISO string
         headers={"Content-Disposition": "attachment; filename=weather_data.json"}
     )

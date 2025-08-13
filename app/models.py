@@ -8,6 +8,8 @@ class WeatherRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     location = Column(String, index=True)
     start_date = Column(String)  # Keep as string for simplicity
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     end_date = Column(String)
     temperature = Column(Float)
     description = Column(String)
