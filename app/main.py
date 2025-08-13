@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import date
 from . import models, schemas, crud
 from .database import engine, Base, get_db
 from .weather_api import get_weather_for_location
-from datetime import date
+from fastapi.responses import JSONResponse
 
 # Create DB tables
 Base.metadata.create_all(bind=engine)
@@ -22,10 +23,12 @@ def create_weather_record(weather: schemas.WeatherCreate, db: Session = Depends(
     if weather.end_date < weather.start_date:
         raise HTTPException(status_code=400, detail="End date must be after start date")
 
-    # Fetch live weather data for the given location
-    temp, desc = get_weather_for_location(weather.location)
+    # Fetch live weather data for the given coordinates
+    temp, desc = get_weather_for_location(weather.latitude, weather.longitude)
+
     weather_with_data = schemas.WeatherCreate(
-        location=weather.location,
+        latitude=weather.latitude,
+        longitude=weather.longitude,
         start_date=weather.start_date,
         end_date=weather.end_date,
         temperature=temp,
@@ -64,3 +67,22 @@ def delete_weather_record(
     if not deleted:
         raise HTTPException(status_code=404, detail="Weather record not found")
     return {"message": f"Weather record with ID {weather_id} deleted successfully"}
+
+@app.get("/weather/export/json")
+def export_weather_json(db: Session = Depends(get_db)):
+    """
+    Export all weather records as a downloadable JSON file.
+    """
+    records = crud.get_weather_records(db, 0, 1000)  # Get all records
+    if not records:
+        raise HTTPException(status_code=404, detail="No weather records found")
+
+    # Convert ORM objects to plain dicts
+    data = [record.__dict__ for record in records]
+    for d in data:
+        d.pop("_sa_instance_state", None)  # Remove SQLAlchemy internal field
+
+    return JSONResponse(
+        content=data,
+        headers={"Content-Disposition": "attachment; filename=weather_data.json"}
+    )
